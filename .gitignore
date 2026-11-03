@@ -17,3 +17,6 @@ xcuserdata/
 # Swift Package Manager
 .build/
 .swiftpm/
+
+# Scripts
+run-ios.sh
