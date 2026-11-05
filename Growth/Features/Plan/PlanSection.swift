@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
 
 struct PlanSection: View {
     @Environment(\.modelContext) private var context
@@ -13,9 +14,18 @@ struct PlanSection: View {
     @State private var resourcePhase: Phase?
     @State private var resourceCheckpoint: Checkpoint?
     @State private var errorMessage: String?
+    @State private var pickingRoadmap = false
+    @State private var roadmapReview: RoadmapDraft?
 
     var body: some View {
         Group {
+            Section {
+                Button("Import a roadmap", systemImage: "doc.badge.plus") {
+                    pickingRoadmap = true
+                }
+                .accessibilityIdentifier("plan.import")
+            }
+
             if goal.type == .numeric {
                 Section {
                     Text("These checkpoints are markers. Progress still comes from the numbers.")
@@ -33,6 +43,11 @@ struct PlanSection: View {
 
             ForEach(goal.sortedPhases) { phase in
                 Section {
+                    if !phase.notes.isEmpty {
+                        Text(phase.notes)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
                     ForEach(phase.sortedCheckpoints) { checkpoint in
                         CheckpointRow(checkpoint: checkpoint) {
                             _ = PlanRepository(context: context).toggleCheckpoint(checkpoint)
@@ -130,6 +145,25 @@ struct PlanSection: View {
         .sheet(item: $resourceCheckpoint) { checkpoint in
             NavigationStack { ResourceEditorView(phase: nil, checkpoint: checkpoint) }
         }
+        .fileImporter(
+            isPresented: $pickingRoadmap,
+            allowedContentTypes: [docxType],
+            allowsMultipleSelection: false
+        ) { result in
+            switch result {
+            case .success(let urls):
+                if let url = urls.first {
+                    loadRoadmap(from: url)
+                }
+            case .failure:
+                errorMessage = "The document couldn't be opened."
+            }
+        }
+        .sheet(item: $roadmapReview) { draft in
+            NavigationStack {
+                RoadmapReviewView(goal: goal, draft: draft)
+            }
+        }
         .alert("Couldn't update the plan", isPresented: Binding(
             get: { errorMessage != nil },
             set: { if !$0 { errorMessage = nil } }
@@ -197,6 +231,23 @@ struct PlanSection: View {
             errorMessage = error.localizedDescription
         }
         dialog = nil
+    }
+
+    private var docxType: UTType {
+        UTType("org.openxmlformats.wordprocessingml.document")
+            ?? UTType(filenameExtension: "docx")
+            ?? .data
+    }
+
+    private func loadRoadmap(from url: URL) {
+        let started = url.startAccessingSecurityScopedResource()
+        defer { if started { url.stopAccessingSecurityScopedResource() } }
+        do {
+            let data = try Data(contentsOf: url)
+            roadmapReview = try RoadmapImport.parse(data)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     private func saveDate() {

@@ -1,6 +1,11 @@
 import Foundation
 import SwiftData
 
+enum PlanImportMode: Sendable {
+    case replace
+    case append
+}
+
 @MainActor
 struct PlanRepository {
     let context: ModelContext
@@ -254,6 +259,73 @@ struct PlanRepository {
         return resource
     }
 
+    func importRoadmap(_ draft: RoadmapDraft, into goal: Goal, mode: PlanImportMode) throws {
+        switch goal.type {
+        case .habit:
+            throw RepositoryError.invalid("Habits don't use a roadmap.")
+        case .oneTime:
+            throw RepositoryError.invalid("One-time tasks don't use a roadmap.")
+        case .milestone, .project, .numeric:
+            break
+        }
+        let phases = draft.phases.filter { !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        guard !phases.isEmpty else { throw RepositoryError.invalid("Add a phase title.") }
+
+        let now = Date()
+        if mode == .replace {
+            for phase in goal.phases ?? [] where phase.deletedAt == nil {
+                phase.deletedAt = now
+                phase.updatedAt = now
+                for checkpoint in phase.checkpoints ?? [] where checkpoint.deletedAt == nil {
+                    markCheckpointDeleted(checkpoint, at: now)
+                }
+                for resource in phase.resources ?? [] where resource.deletedAt == nil {
+                    resource.deletedAt = now
+                }
+            }
+        }
+
+        var sortIndex = mode == .append ? (goal.sortedPhases.map(\.sortIndex).max() ?? -1) + 1 : 0
+        for phaseDraft in phases {
+            let phase = Phase()
+            phase.title = phaseDraft.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            phase.notes = phaseDraft.notes.trimmingCharacters(in: .whitespacesAndNewlines)
+            phase.sortIndex = sortIndex
+            phase.goal = goal
+            context.insert(phase)
+            sortIndex += 1
+            addImportedLinks(phaseDraft.links, phase: phase, checkpoint: nil)
+
+            var checkpointIndex = 0
+            for checkpointDraft in phaseDraft.checkpoints {
+                let title = checkpointDraft.title.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !title.isEmpty else { continue }
+                let checkpoint = Checkpoint()
+                checkpoint.title = title
+                checkpoint.notes = checkpointDraft.notes.trimmingCharacters(in: .whitespacesAndNewlines)
+                checkpoint.sortIndex = checkpointIndex
+                checkpoint.phase = phase
+                context.insert(checkpoint)
+                checkpointIndex += 1
+                addImportedLinks(checkpointDraft.links, phase: nil, checkpoint: checkpoint)
+            }
+        }
+
+        if goal.type == .numeric {
+            goal.allowsPlan = true
+        }
+        goal.updatedAt = now
+        let checkpointCount = phases.reduce(0) { $0 + $1.checkpoints.count }
+        ActivityLog.record(
+            in: context,
+            goal: goal,
+            type: .roadmapEdited,
+            summary: "Imported a plan",
+            detail: "\(phases.count) phases, \(checkpointCount) checkpoints"
+        )
+        try StoreSaving.save(context)
+    }
+
     func softDeleteResource(_ resource: ResourceLink) {
         resource.deletedAt = .now
         let goal = resource.phase?.goal ?? resource.checkpoint?.phase?.goal
@@ -266,6 +338,20 @@ struct PlanRepository {
             detail: resource.title
         )
         try? StoreSaving.save(context)
+    }
+
+    private func addImportedLinks(_ links: [RoadmapLinkDraft], phase: Phase?, checkpoint: Checkpoint?) {
+        for link in links {
+            guard let url = LinkURL.normalize(link.url) else { continue }
+            let title = link.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !title.isEmpty else { continue }
+            let resource = ResourceLink()
+            resource.title = title
+            resource.urlString = url
+            resource.phase = phase
+            resource.checkpoint = checkpoint
+            context.insert(resource)
+        }
     }
 
     private func markCheckpointDeleted(_ checkpoint: Checkpoint, at now: Date) {
