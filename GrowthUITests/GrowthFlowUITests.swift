@@ -25,6 +25,15 @@ final class GrowthFlowUITests: XCTestCase {
         XCTAssertFalse(app.navigationBars["Delete me"].exists)
     }
 
+    func testOneTimeTaskMarksDone() {
+        createGoal(type: "oneTime", title: "Go to the mechanic", extra: nil)
+        openGoal("Go to the mechanic")
+        XCTAssertFalse(app.buttons["Plan"].exists)
+        app.buttons["overview.markDone"].tap()
+        let done = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Complete")).firstMatch
+        XCTAssertTrue(done.waitForExistence(timeout: 3))
+    }
+
     func testEachGoalTypeJournalAndRecalibrate() {
         createGoal(type: "milestone", title: "Write the essay", extra: nil)
         openGoal("Write the essay")
@@ -82,6 +91,14 @@ final class GrowthFlowUITests: XCTestCase {
         app.buttons["overview.logHabit"].tap()
         app.buttons["habit.save"].tap()
         XCTAssertTrue(app.staticTexts["In progress"].waitForExistence(timeout: 2))
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+
+        createGoal(type: "oneTime", title: "Go to the mechanic", extra: nil)
+        openGoal("Go to the mechanic")
+        XCTAssertFalse(app.buttons["Plan"].exists)
+        app.buttons["overview.markDone"].tap()
+        let done = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Complete")).firstMatch
+        XCTAssertTrue(done.waitForExistence(timeout: 3))
         app.navigationBars.buttons.element(boundBy: 0).tap()
 
         app.tabBars.buttons["Journal"].tap()

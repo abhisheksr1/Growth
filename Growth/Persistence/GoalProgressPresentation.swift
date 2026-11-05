@@ -69,6 +69,11 @@ extension Goal {
                 caption = "\(snapshot.completed) of \(snapshot.expected) so far this week"
             }
             return GoalProgressPresentation(fraction: snapshot.fraction, caption: caption, note: nil)
+        case .oneTime:
+            if status == .completed {
+                return GoalProgressPresentation(fraction: 1, caption: "Done", note: nil)
+            }
+            return GoalProgressPresentation(fraction: 0, caption: "Not done", note: nil)
         }
     }
 }

@@ -94,6 +94,26 @@ final class RepositoryTests: XCTestCase {
         XCTAssertFalse(goal.suggestsCompletion)
     }
 
+    func testOneTimeTaskIsDoneWhenMarkedComplete() throws {
+        var draft = GoalDraft()
+        draft.title = "Go to the mechanic"
+        draft.type = .oneTime
+        draft.hasTargetDate = true
+        draft.targetDate = Date()
+        let goal = try GoalRepository(context: context).create(draft)
+        XCTAssertEqual(goal.type, .oneTime)
+        XCTAssertFalse(goal.showsPlan)
+        XCTAssertFalse(goal.suggestsCompletion)
+        XCTAssertEqual(goal.progressPresentation().fraction, 0)
+        XCTAssertEqual(goal.progressPresentation().caption, "Not done")
+        XCTAssertThrowsError(try PlanRepository(context: context).addPhase(to: goal, title: "Nope"))
+        GoalRepository(context: context).setStatus(goal, to: .completed)
+        XCTAssertEqual(goal.status, .completed)
+        XCTAssertEqual(goal.progressPresentation().fraction, 1)
+        XCTAssertEqual(goal.progressPresentation().caption, "Done")
+        XCTAssertFalse(GoalRepository.active([goal]).contains(where: { $0.id == goal.id }))
+    }
+
     func testHabitLogIsOnePerDayAndQuotaLimited() throws {
         var draft = GoalDraft()
         draft.title = "Walk"

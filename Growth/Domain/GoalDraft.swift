@@ -33,7 +33,7 @@ enum GoalValidation {
             return "Add a title."
         }
         switch draft.type {
-        case .milestone, .project:
+        case .milestone, .project, .oneTime:
             return nil
         case .numeric:
             if draft.numericStart == nil || draft.numericTarget == nil {

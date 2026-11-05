@@ -20,7 +20,7 @@ struct GoalsListView: View {
                     EmptyStateView(
                         systemImage: "flag",
                         title: "No goals yet",
-                        message: "Start with a milestone, a project, a number, or a habit. You only fill in what that kind of goal needs.",
+                        message: "Start with a milestone, a project, a number, a habit, or a one-time task. You only fill in what that kind of goal needs.",
                         actionTitle: "New goal",
                         action: { showEditor = true }
                     )
@@ -167,6 +167,12 @@ struct GoalEditorView: View {
         List(GoalType.allCases) { type in
             Button {
                 draft.type = type
+                if type == .oneTime {
+                    draft.hasTargetDate = true
+                    draft.targetDate = .now
+                } else {
+                    draft.hasTargetDate = false
+                }
                 step = .form
             } label: {
                 HStack(alignment: .top, spacing: 12) {
@@ -250,7 +256,7 @@ struct GoalEditorView: View {
     @ViewBuilder
     private var typeSection: some View {
         switch draft.type {
-        case .milestone, .project:
+        case .milestone, .project, .oneTime:
             Section {
                 Text(draft.type.blurb)
                     .font(.footnote)

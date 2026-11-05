@@ -279,6 +279,20 @@ struct GoalDetailView: View {
         case .habit:
             Button("Log habit") { showHabitLog = true }
                 .accessibilityIdentifier("overview.logHabit")
+        case .oneTime:
+            if goal.status == .completed {
+                Button("Reopen") {
+                    GoalRepository(context: context).setStatus(goal, to: .inProgress)
+                    Task { await NotificationScheduler.reschedule(context: context) }
+                }
+                .accessibilityIdentifier("overview.reopenTask")
+            } else {
+                Button("Mark done") {
+                    GoalRepository(context: context).setStatus(goal, to: .completed)
+                    Task { await NotificationScheduler.reschedule(context: context) }
+                }
+                .accessibilityIdentifier("overview.markDone")
+            }
         }
     }
 

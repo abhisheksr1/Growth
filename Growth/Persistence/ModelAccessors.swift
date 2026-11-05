@@ -35,7 +35,7 @@ extension Goal {
             true
         case .numeric:
             allowsPlan
-        case .habit:
+        case .habit, .oneTime:
             false
         }
     }
@@ -117,7 +117,7 @@ extension Goal {
                 current: current,
                 target: target
             )
-        case .habit:
+        case .habit, .oneTime:
             return false
         }
     }

@@ -7,8 +7,13 @@ struct PlanRepository {
 
     @discardableResult
     func addPhase(to goal: Goal, title: String) throws -> Phase {
-        guard goal.type != .habit else {
+        switch goal.type {
+        case .habit:
             throw RepositoryError.invalid("Habits don't use a roadmap.")
+        case .oneTime:
+            throw RepositoryError.invalid("One-time tasks don't use a roadmap.")
+        case .milestone, .project, .numeric:
+            break
         }
         let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw RepositoryError.invalid("Add a phase title.") }

@@ -5,6 +5,7 @@ enum GoalType: String, CaseIterable, Identifiable, Sendable {
     case project
     case numeric
     case habit
+    case oneTime
 
     var id: String { rawValue }
 
@@ -14,6 +15,7 @@ enum GoalType: String, CaseIterable, Identifiable, Sendable {
         case .project: "Project"
         case .numeric: "Number"
         case .habit: "Habit"
+        case .oneTime: "One time"
         }
     }
 
@@ -23,6 +25,7 @@ enum GoalType: String, CaseIterable, Identifiable, Sendable {
         case .project: "square.stack.3d.up"
         case .numeric: "number"
         case .habit: "repeat"
+        case .oneTime: "checkmark.square"
         }
     }
 
@@ -36,6 +39,8 @@ enum GoalType: String, CaseIterable, Identifiable, Sendable {
             "A value that should rise or fall, with a history of each update."
         case .habit:
             "A quiet log of the days you show up. Missed days stay uneventful."
+        case .oneTime:
+            "A single thing to finish once, like an errand or a task."
         }
     }
 }
